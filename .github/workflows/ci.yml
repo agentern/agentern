@@ -1,0 +1,267 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: agentern
+          POSTGRES_USER: agentern
+          POSTGRES_PASSWORD: agentern-ci-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U agentern -d agentern"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      DATABASE_URL: postgres://agentern:agentern-ci-password@127.0.0.1:5432/agentern
+      TEST_DATABASE_URL: postgres://agentern:agentern-ci-password@127.0.0.1:5432/agentern
+      VALKEY_URL: redis://127.0.0.1:6379
+      TOKEN_PEPPER: ci-token-pepper-with-at-least-thirty-two-characters
+      APP_BASE_URL: http://127.0.0.1:3000
+      LEGAL_ENTITY_NAME: Agentern CI
+      SUPPORT_EMAIL: support@example.test
+      SECURITY_EMAIL: security@example.test
+      METRICS_BEARER_TOKEN: ci-metrics-token-with-at-least-thirty-two-characters
+      PROXY_SHARED_SECRET: ci-proxy-token-with-at-least-thirty-two-characters
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.4 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm check:unused
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Start production server
+        run: |
+          pnpm --filter web start > /tmp/agentern.log 2>&1 &
+          attempt=0
+          while [ "$attempt" -lt 30 ]; do
+            curl -fsS http://127.0.0.1:3000/readyz && exit 0
+            attempt=$((attempt + 1))
+            sleep 1
+          done
+          cat /tmp/agentern.log
+          exit 1
+      - run: TEST_MCP_URL=http://127.0.0.1:3000/mcp pnpm --filter web exec vitest run tests/integration/mcp.test.ts
+      - run: E2E_BASE_URL=http://127.0.0.1:3000 pnpm test:e2e
+      - name: Lighthouse launch thresholds
+        run: pnpm dlx @lhci/cli@0.15.1 autorun
+
+  container-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: agentern:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: agentern:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: gitleaks/gitleaks-action@v2
+
+  dependency-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify, container-security, dependency-security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_repository: ${{ steps.image.outputs.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image
+        name: Resolve image repository
+        shell: bash
+        run: echo "repository=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.repository }}:${{ github.sha }}-web
+          build-args: DEPLOYMENT_VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+      - name: Publish migration image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrator
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.repository }}:${{ github.sha }}-migrate
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+      - name: Publish PostgreSQL image
+        uses: docker/build-push-action@v6
+        with:
+          context: ops/postgres
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.repository }}:${{ github.sha }}-postgres
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+  deploy-production:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+    environment:
+      name: production
+      url: https://agentern.com
+    concurrency:
+      group: agentern-production
+      cancel-in-progress: false
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      GCP_INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
+      GCP_SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}
+      DEPLOY_PATH: ${{ vars.GCP_DEPLOY_PATH }}
+      IMAGE_REPOSITORY: ${{ needs.publish.outputs.image_repository }}
+      GHCR_USER: ${{ github.actor }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          version: ">= 541.0.0"
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GCP_PROJECT_ID:?GCP_PROJECT_ID is required}"
+          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
+          : "${GCP_DEPLOY_SERVICE_ACCOUNT:?GCP_DEPLOY_SERVICE_ACCOUNT is required}"
+          : "${GCP_INSTANCE_NAME:?GCP_INSTANCE_NAME is required}"
+          : "${GCP_ZONE:?GCP_ZONE is required}"
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/agentern}"
+          GCP_SECRET_PREFIX="${GCP_SECRET_PREFIX:-agentern}"
+          [[ "$DEPLOY_PATH" =~ ^/[a-zA-Z0-9._/-]+$ ]] || { echo "Invalid deployment path" >&2; exit 2; }
+          [[ "$GCP_SECRET_PREFIX" =~ ^[a-z][a-z0-9-]{0,40}$ ]] || { echo "Invalid GCP secret prefix" >&2; exit 2; }
+          printf 'DEPLOY_PATH=%s\nGCP_SECRET_PREFIX=%s\n' "$DEPLOY_PATH" "$GCP_SECRET_PREFIX" >> "$GITHUB_ENV"
+          gcloud compute instances describe "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --format='value(status)' | grep -qx RUNNING
+      - name: Synchronize production secrets from Secret Manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote() {
+            gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet --command "$1"
+          }
+          remote "sudo install -d -m 0750 '$DEPLOY_PATH' && sudo install -d -m 0700 '$DEPLOY_PATH/ops/secrets'"
+          gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$GCP_SECRET_PREFIX-env" \
+            | remote "sudo tee '$DEPLOY_PATH/.env' >/dev/null && sudo chmod 0600 '$DEPLOY_PATH/.env'"
+          for name in postgres-password database-url token-pepper metrics-token admin-cli-secret proxy-shared-secret pgbackrest-s3-key pgbackrest-s3-key-secret pgbackrest-cipher-pass; do
+            file_name=${name//-/_}
+            gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$GCP_SECRET_PREFIX-$name" \
+              | remote "sudo tee '$DEPLOY_PATH/ops/secrets/$file_name' >/dev/null && sudo chmod 0600 '$DEPLOY_PATH/ops/secrets/$file_name'"
+          done
+      - name: Upload deployment definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf - \
+            compose.yaml \
+            compose.production.yaml \
+            compose.secrets.yaml \
+            ops/Caddyfile \
+            ops/backup.sh \
+            ops/deploy.sh \
+            ops/retention.sh \
+            ops/restore-verify.sh \
+            ops/runtime-env.sh \
+            ops/configure-ops-agent.sh \
+            ops/systemd \
+            | gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet \
+                --command "sudo tar -xzf - -C '$DEPLOY_PATH'"
+      - name: Pull and deploy immutable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GHCR_USER" =~ ^[a-zA-Z0-9-]+$ ]] || { echo "Invalid registry username" >&2; exit 2; }
+          remote() {
+            gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet --command "$1"
+          }
+          printf '%s' "$GHCR_TOKEN" | remote "sudo docker login ghcr.io --username '$GHCR_USER' --password-stdin"
+          trap 'remote "sudo docker logout ghcr.io" >/dev/null 2>&1 || true' EXIT
+          remote "sudo RELEASE_SHA='$GITHUB_SHA' IMAGE_REPOSITORY='$IMAGE_REPOSITORY' DEPLOYMENT_ROOT='$DEPLOY_PATH' DEPLOY_PUBLIC_HEALTH_URL='https://agentern.com/readyz' sh '$DEPLOY_PATH/ops/deploy.sh'"
+      - name: Verify public deployment
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://agentern.com/readyz
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 https://agentern.com/ >/dev/null

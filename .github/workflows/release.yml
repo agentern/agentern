@@ -1,0 +1,32 @@
+name: Promote release images
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote tested commit manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          for component in web migrate postgres; do
+            source="$repository:$GITHUB_SHA-$component"
+            target="$repository:$GITHUB_REF_NAME-$component"
+            docker buildx imagetools inspect "$source" >/dev/null
+            docker buildx imagetools create --tag "$target" "$source"
+            docker buildx imagetools inspect "$target"
+          done

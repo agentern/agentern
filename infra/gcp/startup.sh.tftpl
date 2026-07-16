@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl docker.io docker-compose-v2
+systemctl enable --now docker
+
+install -d -m 0750 /opt/agentern
+install -d -m 0700 /opt/agentern/ops/secrets
+install -d -m 0755 /opt/agentern/var
+
+if ! systemctl list-unit-files google-cloud-ops-agent.service >/dev/null 2>&1; then
+  cd /tmp
+  curl -fsSLO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  sh add-google-cloud-ops-agent-repo.sh --also-install
+fi

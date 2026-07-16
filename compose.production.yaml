@@ -1,0 +1,16 @@
+services:
+  db:
+    image: ${POSTGRES_IMAGE:?POSTGRES_IMAGE must identify an immutable production image}
+    pull_policy: always
+
+  migrate:
+    image: ${MIGRATE_IMAGE:?MIGRATE_IMAGE must identify an immutable production image}
+    pull_policy: always
+
+  maintenance:
+    image: ${MIGRATE_IMAGE:?MIGRATE_IMAGE must identify an immutable production image}
+    pull_policy: always
+
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE must identify an immutable production image}
+    pull_policy: always

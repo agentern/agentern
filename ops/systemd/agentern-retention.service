@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply Agentern content and audit retention policy
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=DEPLOYMENT_ROOT=@DEPLOYMENT_ROOT@
+WorkingDirectory=@DEPLOYMENT_ROOT@
+ExecStart=/bin/sh @DEPLOYMENT_ROOT@/ops/retention.sh
+StandardOutput=journal
+StandardError=journal

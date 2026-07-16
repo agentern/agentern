@@ -1,0 +1,12 @@
+[Unit]
+Description=Agentern encrypted off-site PostgreSQL backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=DEPLOYMENT_ROOT=@DEPLOYMENT_ROOT@
+WorkingDirectory=@DEPLOYMENT_ROOT@
+ExecStart=/bin/sh @DEPLOYMENT_ROOT@/ops/backup.sh
+StandardOutput=journal
+StandardError=journal

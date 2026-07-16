@@ -1,0 +1,15 @@
+project_id        = "your-gcp-project-id"
+github_repository = "your-github-owner/agentern"
+
+# The defaults provision an Arm64 t2a-standard-4 VM in us-central1-a.
+# Pick a zone where T2A is available, or override both machine_type and
+# boot_image with a matching x86_64 machine and Ubuntu image.
+region = "us-central1"
+zone   = "us-central1-a"
+
+# Set this only when the agentern.com zone is managed in the same GCP project.
+dns_managed_zone = ""
+
+# Add at least one independent notification channel before launch, or set the
+# generic webhook inputs in a private tfvars file or through TF_VAR_* values.
+alert_notification_channel_ids = []

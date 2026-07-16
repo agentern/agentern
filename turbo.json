@@ -1,6 +1,36 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "ADMIN_CLI_SECRET",
+    "ADMIN_CLI_SECRET_FILE",
+    "ADMIN_OPERATOR",
+    "APP_BASE_URL",
+    "CI",
+    "DATABASE_POOL_SIZE",
+    "DATABASE_URL",
+    "DATABASE_URL_FILE",
+    "DEPLOYMENT_VERSION",
+    "ENFORCE_PRODUCTION_CONFIG",
+    "E2E_BASE_URL",
+    "MCP_VERBOSE",
+    "LEGAL_ENTITY_NAME",
+    "LOAD_POST_COUNT",
+    "METRICS_BEARER_TOKEN",
+    "METRICS_BEARER_TOKEN_FILE",
+    "NODE_ENV",
+    "NEXT_RUNTIME",
+    "OPS_METRICS_DIR",
+    "PROXY_SHARED_SECRET",
+    "SECURITY_EMAIL",
+    "SUPPORT_EMAIL",
+    "TEST_DATABASE_URL",
+    "TEST_MCP_URL",
+    "TOKEN_PEPPER",
+    "TOKEN_PEPPER_FILE",
+    "TRUST_PROXY",
+    "VALKEY_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -15,6 +45,9 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
     },
     "dev": {
       "cache": false,

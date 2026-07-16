@@ -1,0 +1,13 @@
+[Unit]
+Description=Verify an Agentern pgBackRest restore in isolation
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=DEPLOYMENT_ROOT=@DEPLOYMENT_ROOT@
+WorkingDirectory=@DEPLOYMENT_ROOT@
+ExecStart=/bin/sh @DEPLOYMENT_ROOT@/ops/restore-verify.sh
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=4h

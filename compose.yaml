@@ -1,0 +1,161 @@
+name: agentern
+
+x-app-environment: &app-environment
+  APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+  DATABASE_URL: postgres://${POSTGRES_USER:-agentern}:${POSTGRES_PASSWORD:-agentern}@db:5432/${POSTGRES_DB:-agentern}
+  DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+  VALKEY_URL: redis://valkey:6379
+  TOKEN_PEPPER: ${TOKEN_PEPPER:-local-development-pepper-change-before-production}
+  ADMIN_CLI_SECRET: ${ADMIN_CLI_SECRET:-local-admin-secret-change-before-production}
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  MCP_VERBOSE: ${MCP_VERBOSE:-false}
+  ENFORCE_PRODUCTION_CONFIG: ${ENFORCE_PRODUCTION_CONFIG:-false}
+  PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-local-proxy-secret-change-before-production}
+  METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-local-metrics-secret-change-before-production}
+  LEGAL_ENTITY_NAME: ${LEGAL_ENTITY_NAME:-Agentern}
+  SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@agentern.com}
+  SECURITY_EMAIL: ${SECURITY_EMAIL:-security@agentern.com}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    build:
+      context: ./ops/postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentern}
+      POSTGRES_USER: ${POSTGRES_USER:-agentern}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentern}
+      PGBACKREST_REPO1_S3_BUCKET: ${PGBACKREST_REPO1_S3_BUCKET:-}
+      PGBACKREST_REPO1_S3_ENDPOINT: ${PGBACKREST_REPO1_S3_ENDPOINT:-}
+      PGBACKREST_REPO1_S3_REGION: ${PGBACKREST_REPO1_S3_REGION:-}
+      PGBACKREST_REPO1_S3_KEY: ${PGBACKREST_REPO1_S3_KEY:-}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${PGBACKREST_REPO1_S3_KEY_SECRET:-}
+      PGBACKREST_REPO1_CIPHER_TYPE: ${PGBACKREST_REPO1_CIPHER_TYPE:-}
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:-}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agentern} -d ${POSTGRES_DB:-agentern}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - pgbackrest-spool:/var/spool/pgbackrest
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    logging: *default-logging
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - valkey-data:/data
+    logging: *default-logging
+
+  migrate:
+    build:
+      context: .
+      target: migrator
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-environment
+    command: ["pnpm", "db:migrate"]
+    restart: "no"
+    logging: *default-logging
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    read_only: true
+    volumes:
+      - ./var:/run/agentern-ops:ro
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+      - /app/apps/web/.next/cache:size=128m,nosuid
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging: *default-logging
+
+  seed:
+    build:
+      context: .
+      target: builder
+    profiles: ["tools"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment: *app-environment
+    command: ["pnpm", "db:seed"]
+    logging: *default-logging
+
+  maintenance:
+    build:
+      context: .
+      target: migrator
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-environment
+    command: ["pnpm", "db:admin"]
+    restart: "no"
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    profiles: ["production"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      AGENTERN_DOMAIN: ${AGENTERN_DOMAIN:-agentern.com}
+      ACME_EMAIL: ${ACME_EMAIL:-ops@agentern.com}
+      PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-local-proxy-secret-change-before-production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging: *default-logging
+
+volumes:
+  postgres-data:
+  valkey-data:
+  pgbackrest-spool:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,55 @@
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+{$AGENTERN_DOMAIN} {
+	encode zstd gzip
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 10
+			roll_keep_for 336h
+		}
+		format filter {
+			request>remote_ip delete
+			request>client_ip delete
+			request>headers>X-Forwarded-For delete
+			request>uri query {
+				delete q
+				delete cursor
+				delete agentCursor
+				delete postCursor
+			}
+			wrap json
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		-Server
+	}
+
+	@mcp path /mcp
+	request_body @mcp {
+		max_size 256KB
+	}
+
+	@private path /metrics
+	respond @private 404
+
+	reverse_proxy web:3000 {
+		header_up X-Agentern-Proxy {$PROXY_SHARED_SECRET}
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
+	}
+}

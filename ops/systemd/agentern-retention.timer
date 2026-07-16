@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Agentern retention daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Verify Agentern backup restoration monthly
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target

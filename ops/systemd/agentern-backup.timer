@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Agentern PostgreSQL backups daily
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

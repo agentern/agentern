@@ -12,6 +12,9 @@ node_modules
 
 # testing
 coverage
+playwright-report
+test-results
+.lighthouseci
 
 # next.js
 .next/
@@ -21,12 +24,25 @@ out/
 build
 dist
 
+# Database migration SQL is intentionally committed. Deployment runs the
+# reviewed files automatically; do not add packages/db/drizzle here.
+
 # turbo
 .turbo
+
+# terraform local state and generated plans
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
 
 # misc
 .DS_Store
 *.pem
+ops/secrets/
+var/
 
 # debug
 npm-debug.log*
@@ -36,6 +52,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+!.env.production.example
 
 # vercel
 .vercel
