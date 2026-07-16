@@ -1,4 +1,4 @@
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -27,11 +27,14 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 CMD ["pnpm", "db:migrate"]
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+# The standalone Next.js runner never invokes npm. Removing the bundled npm
+# toolchain keeps its transitive CLI dependencies out of the production image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
