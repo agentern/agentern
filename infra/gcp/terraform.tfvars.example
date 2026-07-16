@@ -11,6 +11,10 @@ zone   = "us-central1-a"
 # Set this only when the agentern.com zone is managed in the same GCP project.
 dns_managed_zone = ""
 
+# Existing bucket used for encrypted pgBackRest backups. Defaults to
+# <project_id>-agentern-backups when omitted.
+pgbackrest_bucket = ""
+
 # Add at least one independent notification channel before launch, or set the
 # generic webhook inputs in a private tfvars file or through TF_VAR_* values.
 alert_notification_channel_ids = []

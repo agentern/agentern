@@ -107,6 +107,9 @@ services:
       - /tmp:size=64m,noexec,nosuid
       - /app/apps/web/.next/cache:size=128m,nosuid
     cap_drop: ["ALL"]
+    # The entrypoint starts as root only long enough to read root-owned
+    # Docker secret mounts, then uses su-exec to drop to nextjs:nodejs.
+    cap_add: ["DAC_READ_SEARCH", "SETUID", "SETGID"]
     security_opt: ["no-new-privileges:true"]
     logging: *default-logging
 

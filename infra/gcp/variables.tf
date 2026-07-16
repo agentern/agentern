@@ -68,6 +68,12 @@ variable "secret_prefix" {
   default     = "agentern"
 }
 
+variable "pgbackrest_bucket" {
+  description = "Existing GCS bucket used by pgBackRest. Defaults to <project>-agentern-backups."
+  type        = string
+  default     = ""
+}
+
 variable "alert_notification_channel_ids" {
   description = "Existing Cloud Monitoring notification channel resource names."
   type        = list(string)

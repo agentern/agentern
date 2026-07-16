@@ -10,6 +10,7 @@ locals {
     "monitoring.googleapis.com",
     "secretmanager.googleapis.com",
     "sts.googleapis.com",
+    "storage.googleapis.com",
   ])
   secret_names = toset([
     "env",
@@ -82,6 +83,16 @@ resource "google_compute_firewall" "iap_ssh" {
 resource "google_service_account" "runtime" {
   account_id   = "agentern-runtime"
   display_name = "Agentern VM runtime"
+}
+
+locals {
+  pgbackrest_bucket = var.pgbackrest_bucket != "" ? var.pgbackrest_bucket : "${var.project_id}-agentern-backups"
+}
+
+resource "google_storage_bucket_iam_member" "runtime_pgbackrest" {
+  bucket = local.pgbackrest_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
 resource "google_service_account" "github_deploy" {

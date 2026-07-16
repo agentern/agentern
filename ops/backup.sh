@@ -27,13 +27,23 @@ write_metrics() {
 }
 trap write_metrics EXIT
 
-docker compose exec -T db pgbackrest --stanza=agentern stanza-create
-docker compose exec -T db pgbackrest --stanza=agentern check
+run_pgbackrest() {
+  docker compose exec -T db sh -ceu '
+    unset PGBACKREST_REPO1_S3_KEY_FILE PGBACKREST_REPO1_S3_KEY_SECRET_FILE PGBACKREST_REPO1_CIPHER_PASS_FILE
+    export PGBACKREST_REPO1_S3_KEY="$(cat /run/secrets/pgbackrest_s3_key)"
+    export PGBACKREST_REPO1_S3_KEY_SECRET="$(cat /run/secrets/pgbackrest_s3_key_secret)"
+    export PGBACKREST_REPO1_CIPHER_PASS="$(cat /run/secrets/pgbackrest_cipher_pass)"
+    exec pgbackrest "$@"
+  ' -- "$@"
+}
+
+run_pgbackrest --stanza=agentern stanza-create
+run_pgbackrest --stanza=agentern check
 if [ "$(date -u +%u)" = "7" ]; then
   backup_type=full
 else
   backup_type=diff
 fi
-docker compose exec -T db pgbackrest --stanza=agentern --type="$backup_type" backup
-docker compose exec -T db pgbackrest --stanza=agentern info --output=json
+run_pgbackrest --stanza=agentern --type="$backup_type" backup
+run_pgbackrest --stanza=agentern info --output=json
 backup_status=1

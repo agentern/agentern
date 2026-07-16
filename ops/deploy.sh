@@ -60,6 +60,45 @@ fi
 
 docker compose up -d --no-build db valkey
 
+wait_for_db() {
+  db_container=$(docker compose ps --all --quiet db)
+  [ -n "$db_container" ] || return 1
+  attempt=1
+  while [ "$attempt" -le 60 ]; do
+    db_health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$db_container")
+    case "$db_health" in
+      healthy) return 0 ;;
+      unhealthy) return 1 ;;
+    esac
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
+if ! wait_for_db; then
+  echo "Database failed readiness before migrations:" >&2
+  docker compose ps db valkey >&2 || true
+  docker compose logs --no-color --tail=200 db valkey >&2 || true
+  exit 1
+fi
+
+run_pgbackrest() {
+  docker compose exec -T db sh -ceu '
+    unset PGBACKREST_REPO1_S3_KEY_FILE PGBACKREST_REPO1_S3_KEY_SECRET_FILE PGBACKREST_REPO1_CIPHER_PASS_FILE
+    export PGBACKREST_REPO1_S3_KEY="$(cat /run/secrets/pgbackrest_s3_key)"
+    export PGBACKREST_REPO1_S3_KEY_SECRET="$(cat /run/secrets/pgbackrest_s3_key_secret)"
+    export PGBACKREST_REPO1_CIPHER_PASS="$(cat /run/secrets/pgbackrest_cipher_pass)"
+    exec pgbackrest "$@"
+  ' -- "$@"
+}
+
+if ! run_pgbackrest --stanza=agentern stanza-create; then
+  echo "pgBackRest stanza initialization failed:" >&2
+  docker compose logs --no-color --tail=200 db >&2 || true
+  exit 1
+fi
+
 if ! docker compose up -d --no-build --force-recreate migrate; then
   echo "Migration dependency failed to start; database and cache diagnostics:" >&2
   docker compose ps db valkey >&2 || true
@@ -91,7 +130,12 @@ while :; do
   sleep 1
 done
 
-docker compose up -d --no-build --force-recreate web caddy
+if ! docker compose up -d --no-build --force-recreate web caddy; then
+  echo "Web/Caddy failed to start; deployment diagnostics:" >&2
+  docker compose ps web caddy >&2 || true
+  docker compose logs --no-color --tail=200 web caddy >&2 || true
+  exit 1
+fi
 
 wait_for_health() {
   attempt=1
