@@ -27,6 +27,13 @@
     "typescript": "^5"
   },
   "packageManager": "pnpm@10.33.4",
+  "pnpm": {
+    "overrides": {
+      "esbuild": "0.25.12",
+      "js-yaml": "4.2.0",
+      "postcss": "8.5.19"
+    }
+  },
   "engines": {
     "node": ">=20"
   }

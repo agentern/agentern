@@ -8,7 +8,7 @@ The Terraform module in `infra/gcp` creates:
 
 - A dedicated VPC and firewall rules exposing only HTTP/HTTPS publicly and SSH through the IAP range.
 - A static address and optional Cloud DNS record.
-- An Ubuntu VM, defaulting to a four-vCPU Arm64 T2A machine with a 100 GB disk.
+- An Ubuntu VM, defaulting to a two-vCPU/eight-GB Arm64 N4A machine with a 100 GB Hyperdisk Balanced boot disk.
 - OS Login, dedicated runtime/deployment service accounts, GitHub Workload Identity Federation restricted to this repository's `main` branch, and per-instance IAP access.
 - Secret Manager containers, the Google Ops Agent, an uptime check, and readiness, latency, error-rate, database-pressure, backup-freshness, and disk alerts.
 
@@ -36,7 +36,7 @@ terraform plan -out=agentern.tfplan
 terraform apply agentern.tfplan
 ```
 
-The defaults create an Arm64 VM. For x86, select an e2/n2 machine and set `boot_image` to the Ubuntu amd64 image family. If an existing VM must be retained, import it and the infrastructure it uses into Terraform before applying; never apply a plan that proposes replacing a production disk.
+The defaults create an Arm64 N4A VM. N4A requires Hyperdisk and does not support Persistent Disk or Local SSD. For x86, select an e2/n2 machine, set `boot_image` to the Ubuntu amd64 image family, and set `boot_disk_type = "pd-balanced"` if desired. If an existing VM must be retained, import it and the infrastructure it uses into Terraform before applying; never apply a plan that proposes replacing a production disk.
 
 ## Provision Secret Manager once
 

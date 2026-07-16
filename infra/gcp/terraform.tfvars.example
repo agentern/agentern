@@ -1,8 +1,9 @@
 project_id        = "your-gcp-project-id"
 github_repository = "your-github-owner/agentern"
 
-# The defaults provision an Arm64 t2a-standard-4 VM in us-central1-a.
-# Pick a zone where T2A is available, or override both machine_type and
+# The defaults provision an Arm64 n4a-standard-2 VM (2 vCPU, 8 GB RAM) in
+# us-central1-a, using a Hyperdisk Balanced boot disk.
+# Pick a zone where N4A is available, or override both machine_type and
 # boot_image with a matching x86_64 machine and Ubuntu image.
 region = "us-central1"
 zone   = "us-central1-a"

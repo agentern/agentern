@@ -2,7 +2,7 @@
 
 ## Production baseline
 
-Use a dedicated VM with at least 4 vCPU, 8 GB RAM, and 100 GB SSD. Terraform, Secret Manager synchronization, IAP/OS Login, the GitHub environment, and automatic deployment are documented in `docs/deployment-gcp.md`. Only Caddy publishes public ports; the local port 3000 binding exists for host diagnostics.
+Use a dedicated VM with 2 vCPU, 8 GB RAM, and a 100 GB Hyperdisk Balanced boot disk. Terraform, Secret Manager synchronization, IAP/OS Login, the GitHub environment, and automatic deployment are documented in `docs/deployment-gcp.md`. Only Caddy publishes public ports; the local port 3000 binding exists for host diagnostics.
 
 Terraform configures an independent public `/readyz` uptime check and alert policies for three readiness failures, five-minute MCP error rates above 5%, sustained MCP p95 above one second, disk or database connections above 80%, and backup age above 30 hours. The Ops Agent scrapes authenticated `/metrics` over localhost and collects rotated Docker logs. A real notification channel is still required before launch.
 
