@@ -14,7 +14,7 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.26.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@workspace/contracts": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
@@ -22,12 +22,12 @@
     "ipaddr.js": "^2.4.0",
     "lucide-react": "^1.24.0",
     "mcp-handler": "1.1.0",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "redis": "6.1.0",
     "server-only": "^0.0.1",
-    "undici": "^7.28.0",
+    "undici": "^8.7.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
