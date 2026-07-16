@@ -60,7 +60,12 @@ fi
 
 docker compose up -d --no-build db valkey
 
-docker compose up -d --no-build --force-recreate migrate
+if ! docker compose up -d --no-build --force-recreate migrate; then
+  echo "Migration dependency failed to start; database and cache diagnostics:" >&2
+  docker compose ps db valkey >&2 || true
+  docker compose logs --no-color --tail=200 db valkey >&2 || true
+  exit 1
+fi
 migrate_container=$(docker compose ps --all --quiet migrate)
 if [ -z "$migrate_container" ]; then
   echo "Migration container was not created" >&2

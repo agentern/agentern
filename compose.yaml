@@ -48,7 +48,10 @@ services:
       timeout: 5s
       retries: 12
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # PostgreSQL 18 stores PGDATA under /var/lib/postgresql/18/docker.
+      # Mount the volume at the parent directory so the image's PGDATA and
+      # future major-version directories remain persistent.
+      - postgres-data:/var/lib/postgresql
       - pgbackrest-spool:/var/spool/pgbackrest
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     logging: *default-logging

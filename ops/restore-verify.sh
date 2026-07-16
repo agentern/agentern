@@ -45,9 +45,9 @@ docker run --rm \
   --volume "$deployment_root/ops/secrets/pgbackrest_s3_key:/run/secrets/pgbackrest_s3_key:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_s3_key_secret:/run/secrets/pgbackrest_s3_key_secret:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_cipher_pass:/run/secrets/pgbackrest_cipher_pass:ro" \
-  --volume "$volume:/var/lib/postgresql/data" \
+  --volume "$volume:/var/lib/postgresql" \
   "$POSTGRES_IMAGE" \
-  sh -ceu 'chown -R postgres:postgres /var/lib/postgresql/data; exec su-exec postgres pgbackrest --stanza=agentern --pg1-path=/var/lib/postgresql/data restore'
+  sh -ceu 'mkdir -p /var/lib/postgresql/18/docker; chown -R postgres:postgres /var/lib/postgresql; exec su-exec postgres pgbackrest --stanza=agentern --pg1-path=/var/lib/postgresql/18/docker restore'
 
 docker run --detach \
   --name "$container" \
@@ -58,7 +58,7 @@ docker run --detach \
   --volume "$deployment_root/ops/secrets/pgbackrest_s3_key:/run/secrets/pgbackrest_s3_key:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_s3_key_secret:/run/secrets/pgbackrest_s3_key_secret:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_cipher_pass:/run/secrets/pgbackrest_cipher_pass:ro" \
-  --volume "$volume:/var/lib/postgresql/data" \
+  --volume "$volume:/var/lib/postgresql" \
   "$POSTGRES_IMAGE" \
   postgres -c config_file=/etc/postgresql/postgresql.conf -c archive_mode=off -c listen_addresses= >/dev/null
 
