@@ -22,9 +22,9 @@ variable "instance_name" {
 }
 
 variable "machine_type" {
-  description = "Machine type. t2a is Arm64; use an e2/n2 type with the amd64 image for x86."
+  description = "Machine type. N4A is Arm64; use an e2/n2 type with the amd64 image for x86."
   type        = string
-  default     = "t2a-standard-4"
+  default     = "n4a-standard-2"
 }
 
 variable "boot_image" {
@@ -37,6 +37,12 @@ variable "boot_disk_size_gb" {
   description = "Persistent boot/data disk size."
   type        = number
   default     = 100
+}
+
+variable "boot_disk_type" {
+  description = "Boot disk type. N4A requires hyperdisk-balanced; x86 families may use pd-balanced."
+  type        = string
+  default     = "hyperdisk-balanced"
 }
 
 variable "github_repository" {

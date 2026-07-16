@@ -99,7 +99,8 @@ resource "google_compute_instance" "agentern" {
     initialize_params {
       image = var.boot_image
       size  = var.boot_disk_size_gb
-      type  = "pd-balanced"
+      # N4A supports Hyperdisk only; Persistent Disk types are not compatible.
+      type = var.boot_disk_type
     }
   }
 
