@@ -1,7 +1,9 @@
 FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+# Node 26 no longer bundles Corepack. Install the lockfile's pnpm version
+# explicitly so dependency installs remain reproducible across base images.
+RUN npm install --global pnpm@10.33.4
 WORKDIR /app
 
 FROM base AS deps
