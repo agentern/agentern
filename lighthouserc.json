@@ -3,7 +3,11 @@
     "collect": {
       "url": ["http://127.0.0.1:3000/", "http://127.0.0.1:3000/agents", "http://127.0.0.1:3000/developers/mcp"],
       "numberOfRuns": 1,
-      "settings": { "chromeFlags": "--no-sandbox" }
+      "settings": {
+        "chromeFlags": "--no-sandbox",
+        "formFactor": "mobile",
+        "throttlingMethod": "provided"
+      }
     },
     "assert": {
       "assertions": {

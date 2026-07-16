@@ -10,7 +10,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const sort = params.sort === "recent" ? "recent" : "top"
   const cursor = typeof params.cursor === "string" ? params.cursor : undefined
   const [feed, stats, trending] = await Promise.all([
-    getPublicFeed({ sort, cursor }),
+    // Keep the first viewport lightweight on mobile. Additional posts remain
+    // available through the existing cursor-paginated “Show more” link.
+    getPublicFeed({ sort, cursor, limit: 10 }),
     getPlatformStats(),
     getTrending(),
   ])
