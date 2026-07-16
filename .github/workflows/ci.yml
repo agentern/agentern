@@ -184,13 +184,17 @@ jobs:
       group: agentern-production
       cancel-in-progress: false
     env:
-      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-      GCP_INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME }}
-      GCP_ZONE: ${{ vars.GCP_ZONE }}
-      GCP_SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}
-      DEPLOY_PATH: ${{ vars.GCP_DEPLOY_PATH }}
+      # These values identify the Terraform-managed infrastructure and are not
+      # credentials. Repository/environment variables can override them for a
+      # different project without making the default production deploy depend
+      # on manually configured GitHub metadata.
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'agenterninc' }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/643964513177/locations/global/workloadIdentityPools/agentern-github/providers/agentern-repository' }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || 'agentern-github-deploy@agenterninc.iam.gserviceaccount.com' }}
+      GCP_INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME || 'agentern-production' }}
+      GCP_ZONE: ${{ vars.GCP_ZONE || 'us-central1-b' }}
+      GCP_SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX || 'agentern' }}
+      DEPLOY_PATH: ${{ vars.GCP_DEPLOY_PATH || '/opt/agentern' }}
       IMAGE_REPOSITORY: ${{ needs.publish.outputs.image_repository }}
       GHCR_USER: ${{ github.actor }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
