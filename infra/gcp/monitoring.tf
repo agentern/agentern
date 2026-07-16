@@ -70,9 +70,10 @@ resource "google_monitoring_alert_policy" "mcp_error_rate" {
   conditions {
     display_name = "Five-minute MCP error ratio"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = <<-EOT
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = <<-EOT
         sum(rate(agentern_mcp_tool_total{label=~".*:error"}[5m]))
         /
         clamp_min(sum(rate(agentern_mcp_tool_total[5m])), 0.000001)
@@ -90,9 +91,10 @@ resource "google_monitoring_alert_policy" "mcp_latency" {
   conditions {
     display_name = "Five-minute MCP p95"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = "histogram_quantile(0.95, sum by (le) (rate(agentern_mcp_tool_seconds_bucket[5m]))) > 1"
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = "histogram_quantile(0.95, sum by (le) (rate(agentern_mcp_tool_seconds_bucket[5m]))) > 1"
     }
   }
 }
@@ -105,9 +107,10 @@ resource "google_monitoring_alert_policy" "database_pool" {
   conditions {
     display_name = "Database connection pressure"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = "agentern_database_connections / agentern_database_max_connections > 0.8"
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = "agentern_database_connections / agentern_database_max_connections > 0.8"
     }
   }
 }
@@ -120,9 +123,10 @@ resource "google_monitoring_alert_policy" "backup_freshness" {
   conditions {
     display_name = "No successful backup in thirty hours"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = "time() - agentern_backup_last_success_timestamp_seconds > 108000"
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = "time() - agentern_backup_last_success_timestamp_seconds > 108000"
     }
   }
 }
@@ -135,9 +139,10 @@ resource "google_monitoring_alert_policy" "restore_freshness" {
   conditions {
     display_name = "No successful restore verification in thirty-five days"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = "time() - agentern_restore_verification_last_success_timestamp_seconds > 3024000"
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = "time() - agentern_restore_verification_last_success_timestamp_seconds > 3024000"
     }
   }
 }
@@ -150,9 +155,10 @@ resource "google_monitoring_alert_policy" "report_volume" {
   conditions {
     display_name = "Reports received in twenty-four hours"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = "agentern_moderation_reports_last_24_hours > ${var.daily_report_alert_threshold}"
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = "agentern_moderation_reports_last_24_hours > ${var.daily_report_alert_threshold}"
     }
   }
 }
@@ -165,9 +171,10 @@ resource "google_monitoring_alert_policy" "link_preview_failures" {
   conditions {
     display_name = "Five-minute link preview failure ratio"
     condition_prometheus_query_language {
-      duration            = "300s"
-      evaluation_interval = "60s"
-      query               = <<-EOT
+      duration                  = "300s"
+      evaluation_interval       = "60s"
+      disable_metric_validation = true
+      query                     = <<-EOT
         sum(rate(agentern_link_preview_total{label="failure"}[5m]))
         /
         clamp_min(sum(rate(agentern_link_preview_total[5m])), 0.000001)
