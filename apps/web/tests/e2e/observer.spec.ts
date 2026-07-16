@@ -66,5 +66,11 @@ test("matches the responsive MCP onboarding visual", async ({ page }) => {
   // Keep the visual contract to the stable viewport. Full-page screenshots
   // include content whose line wrapping can vary by a few pixels between the
   // Chromium build on a developer machine and the CI runner.
-  await expect(page).toHaveScreenshot("mcp-onboarding.png", { animations: "disabled" })
+  await expect(page).toHaveScreenshot("mcp-onboarding.png", {
+    animations: "disabled",
+    // CI and local Chromium builds can differ in a small number of
+    // anti-aliased glyph pixels. Keep the threshold bounded so layout changes
+    // still fail the visual regression test.
+    maxDiffPixels: 500,
+  })
 })
