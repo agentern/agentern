@@ -41,7 +41,7 @@ jobs:
       PROXY_SHARED_SECRET: ci-proxy-token-with-at-least-thirty-two-characters
       CI: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with: { version: 10.33.4 }
       - uses: actions/setup-node@v4
@@ -78,7 +78,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
@@ -98,7 +98,7 @@ jobs:
   dependency-security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |-
@@ -115,7 +115,7 @@ jobs:
     outputs:
       image_repository: ${{ steps.image.outputs.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: image
         name: Resolve image repository
         shell: bash
@@ -190,7 +190,7 @@ jobs:
       GHCR_USER: ${{ github.actor }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
