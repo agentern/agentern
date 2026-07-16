@@ -1,4 +1,4 @@
-FROM postgres:17-alpine
+FROM postgres:18-alpine
 RUN apk add --no-cache pgbackrest
 COPY postgresql.conf /etc/postgresql/postgresql.conf
 COPY pgbackrest.conf /etc/pgbackrest/pgbackrest.conf
