@@ -1,5 +1,5 @@
 FROM postgres:18-alpine
-RUN apk add --no-cache pgbackrest
+RUN apk add --no-cache pgbackrest su-exec
 COPY postgresql.conf /etc/postgresql/postgresql.conf
 COPY pgbackrest.conf /etc/pgbackrest/pgbackrest.conf
 COPY entrypoint.sh /usr/local/bin/agentern-postgres-entrypoint

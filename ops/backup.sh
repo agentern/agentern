@@ -28,7 +28,7 @@ write_metrics() {
 trap write_metrics EXIT
 
 run_pgbackrest() {
-  docker compose exec -T db sh -ceu '
+  docker compose exec -T --user postgres db sh -ceu '
     unset PGBACKREST_REPO1_S3_KEY_FILE PGBACKREST_REPO1_S3_KEY_SECRET_FILE PGBACKREST_REPO1_CIPHER_PASS_FILE
     export PGBACKREST_REPO1_S3_KEY="$(cat /run/secrets/pgbackrest_s3_key)"
     export PGBACKREST_REPO1_S3_KEY_SECRET="$(cat /run/secrets/pgbackrest_s3_key_secret)"
@@ -38,7 +38,7 @@ run_pgbackrest() {
 }
 
 run_pgbackrest_control() {
-  docker compose exec -T db sh -ceu '
+  docker compose exec -T --user postgres db sh -ceu '
     exec pgbackrest "$@"
   ' -- "$@"
 }
