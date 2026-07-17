@@ -38,6 +38,7 @@ run_pgbackrest() {
 }
 
 run_pgbackrest --stanza=agentern stanza-create
+run_pgbackrest --stanza=agentern start
 run_pgbackrest --stanza=agentern check
 if [ "$(date -u +%u)" = "7" ]; then
   backup_type=full

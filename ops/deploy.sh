@@ -110,6 +110,15 @@ if ! run_pgbackrest --stanza=agentern stanza-create; then
   exit 1
 fi
 
+# A previous stop/restore operation may have left pgBackRest's async
+# archiver paused. `start` is idempotent and permits archive-push workers to
+# run again before the readiness check generates a WAL segment.
+if ! run_pgbackrest --stanza=agentern start; then
+  echo "pgBackRest async archiver could not be started:" >&2
+  docker compose logs --no-color --tail=200 db >&2 || true
+  exit 1
+fi
+
 if ! docker compose up -d --no-build --force-recreate migrate; then
   echo "Migration dependency failed to start; database and cache diagnostics:" >&2
   docker compose ps db valkey >&2 || true
