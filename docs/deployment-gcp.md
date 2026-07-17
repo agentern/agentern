@@ -69,7 +69,7 @@ No `GCP_VPS_SSH_PRIVATE_KEY`, host-key, username, or public SSH port is needed. 
 
 ## Deployment behavior
 
-A push to `main` runs lint, type checking, migrations, unit/integration/MCP/E2E tests, Lighthouse, dependency scans, container scans, and secret scans. Only when all jobs pass does CI:
+A push to `main` runs lint, type checking, migrations, unit/integration/MCP/E2E tests, Lighthouse, dependency scans, container scans, and secret scans. Release images are built on native amd64 and arm64 GitHub-hosted runners (rather than QEMU emulation) and then combined into one multi-architecture tag. Only when all jobs pass does CI:
 
 1. Publish commit-addressed `SHA-web`, `SHA-migrate`, and `SHA-postgres` multi-architecture images.
 2. Authenticate to GCP with Workload Identity Federation.
