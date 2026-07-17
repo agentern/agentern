@@ -253,43 +253,103 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          remote() {
-            gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet --command "$1"
+          ssh_command() {
+            gcloud compute ssh "$GCP_INSTANCE_NAME" \
+              --project "$GCP_PROJECT_ID" \
+              --zone "$GCP_ZONE" \
+              --tunnel-through-iap \
+              --ssh-key-expire-after=10m \
+              --quiet \
+              --command "$1"
           }
-          remote "sudo install -d -m 0750 '$DEPLOY_PATH' && sudo install -d -m 0700 '$DEPLOY_PATH/ops/secrets'"
-          gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$GCP_SECRET_PREFIX-env" \
-            | remote "sudo tee '$DEPLOY_PATH/.env' >/dev/null && sudo chmod 0600 '$DEPLOY_PATH/.env'"
+          sync_secret() {
+            secret=$1
+            target=$2
+            attempt=1
+            while [ "$attempt" -le 3 ]; do
+              if gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$secret" |
+                ssh_command "sudo tee '$target' >/dev/null && sudo chmod 0600 '$target'"; then
+                return 0
+              else
+                status=$?
+              fi
+              [ "$status" -eq 255 ] || return "$status"
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
+            return 255
+          }
+          ssh_command "sudo install -d -m 0750 '$DEPLOY_PATH' && sudo install -d -m 0700 '$DEPLOY_PATH/ops/secrets'"
+          sync_secret "$GCP_SECRET_PREFIX-env" "$DEPLOY_PATH/.env"
           for name in postgres-password database-url token-pepper metrics-token admin-cli-secret proxy-shared-secret pgbackrest-s3-key pgbackrest-s3-key-secret pgbackrest-cipher-pass; do
             file_name=${name//-/_}
-            gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$GCP_SECRET_PREFIX-$name" \
-              | remote "sudo tee '$DEPLOY_PATH/ops/secrets/$file_name' >/dev/null && sudo chmod 0600 '$DEPLOY_PATH/ops/secrets/$file_name'"
+            sync_secret "$GCP_SECRET_PREFIX-$name" "$DEPLOY_PATH/ops/secrets/$file_name"
           done
       - name: Upload deployment definition
         shell: bash
         run: |
           set -euo pipefail
-          tar -czf - \
-            compose.yaml \
-            compose.production.yaml \
-            compose.secrets.yaml \
-            ops/Caddyfile \
-            ops/backup.sh \
-            ops/deploy.sh \
-            ops/validate-production-config.sh \
-            ops/retention.sh \
-            ops/restore-verify.sh \
-            ops/runtime-env.sh \
-            ops/configure-ops-agent.sh \
-            ops/systemd \
-            | gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet \
-                --command "sudo tar -xzf - -C '$DEPLOY_PATH'"
+          ssh_command() {
+            gcloud compute ssh "$GCP_INSTANCE_NAME" \
+              --project "$GCP_PROJECT_ID" \
+              --zone "$GCP_ZONE" \
+              --tunnel-through-iap \
+              --ssh-key-expire-after=10m \
+              --quiet \
+              --command "$1"
+          }
+          upload_definition() {
+            attempt=1
+            while [ "$attempt" -le 3 ]; do
+              if tar -czf - \
+                compose.yaml \
+                compose.production.yaml \
+                compose.secrets.yaml \
+                ops/Caddyfile \
+                ops/backup.sh \
+                ops/deploy.sh \
+                ops/validate-production-config.sh \
+                ops/retention.sh \
+                ops/restore-verify.sh \
+                ops/runtime-env.sh \
+                ops/configure-ops-agent.sh \
+                ops/systemd \
+                | ssh_command "sudo tar -xzf - -C '$DEPLOY_PATH'"; then
+                return 0
+              else
+                status=$?
+              fi
+              [ "$status" -eq 255 ] || return "$status"
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
+            return 255
+          }
+          upload_definition
       - name: Pull and deploy immutable release
         shell: bash
         run: |
           set -euo pipefail
           [[ "$GHCR_USER" =~ ^[a-zA-Z0-9-]+$ ]] || { echo "Invalid registry username" >&2; exit 2; }
           remote() {
-            gcloud compute ssh "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --tunnel-through-iap --quiet --command "$1"
+            attempt=1
+            while [ "$attempt" -le 3 ]; do
+              if gcloud compute ssh "$GCP_INSTANCE_NAME" \
+                --project "$GCP_PROJECT_ID" \
+                --zone "$GCP_ZONE" \
+                --tunnel-through-iap \
+                --ssh-key-expire-after=10m \
+                --quiet \
+                --command "$1"; then
+                return 0
+              else
+                status=$?
+              fi
+              [ "$status" -eq 255 ] || return "$status"
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
+            return 255
           }
           printf '%s' "$GHCR_TOKEN" | remote "sudo docker login ghcr.io --username '$GHCR_USER' --password-stdin"
           trap 'remote "sudo docker logout ghcr.io" >/dev/null 2>&1 || true' EXIT
