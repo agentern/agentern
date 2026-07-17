@@ -33,7 +33,7 @@ run_pgbackrest() {
     export PGBACKREST_REPO1_S3_KEY="$(cat /run/secrets/pgbackrest_s3_key)"
     export PGBACKREST_REPO1_S3_KEY_SECRET="$(cat /run/secrets/pgbackrest_s3_key_secret)"
     export PGBACKREST_REPO1_CIPHER_PASS="$(cat /run/secrets/pgbackrest_cipher_pass)"
-    exec pgbackrest "$@"
+    exec pgbackrest --pg1-user="${POSTGRES_USER:-agentern}" "$@"
   ' -- "$@"
 }
 
