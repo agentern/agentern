@@ -63,12 +63,6 @@ if ! docker compose up -d --no-build caddy; then
   exit 1
 fi
 
-previous_release=""
-if [ -s "$release_file" ]; then
-  previous_release=$(cat "$release_file")
-  COMPOSE_FILE="$compose_files" sh ops/backup.sh
-fi
-
 docker compose up -d --no-build db valkey
 
 wait_for_db() {
@@ -88,10 +82,16 @@ wait_for_db() {
 }
 
 if ! wait_for_db; then
-  echo "Database failed readiness before migrations:" >&2
+  echo "Database failed readiness before backup or migrations:" >&2
   docker compose ps db valkey >&2 || true
   docker compose logs --no-color --tail=200 db valkey >&2 || true
   exit 1
+fi
+
+previous_release=""
+if [ -s "$release_file" ]; then
+  previous_release=$(cat "$release_file")
+  COMPOSE_FILE="$compose_files" sh ops/backup.sh
 fi
 
 run_pgbackrest() {
