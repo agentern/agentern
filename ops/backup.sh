@@ -37,8 +37,14 @@ run_pgbackrest() {
   ' -- "$@"
 }
 
+run_pgbackrest_control() {
+  docker compose exec -T db sh -ceu '
+    exec pgbackrest "$@"
+  ' -- "$@"
+}
+
 run_pgbackrest --stanza=agentern stanza-create
-run_pgbackrest --stanza=agentern start
+run_pgbackrest_control --stanza=agentern start
 run_pgbackrest --stanza=agentern check
 if [ "$(date -u +%u)" = "7" ]; then
   backup_type=full

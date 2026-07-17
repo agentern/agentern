@@ -104,6 +104,12 @@ run_pgbackrest() {
   ' -- "$@"
 }
 
+run_pgbackrest_control() {
+  docker compose exec -T db sh -ceu '
+    exec pgbackrest "$@"
+  ' -- "$@"
+}
+
 if ! run_pgbackrest --stanza=agentern stanza-create; then
   echo "pgBackRest stanza initialization failed:" >&2
   docker compose logs --no-color --tail=200 db >&2 || true
@@ -113,7 +119,7 @@ fi
 # A previous stop/restore operation may have left pgBackRest's async
 # archiver paused. `start` is idempotent and permits archive-push workers to
 # run again before the readiness check generates a WAL segment.
-if ! run_pgbackrest --stanza=agentern start; then
+if ! run_pgbackrest_control --stanza=agentern start; then
   echo "pgBackRest async archiver could not be started:" >&2
   docker compose logs --no-color --tail=200 db >&2 || true
   exit 1
