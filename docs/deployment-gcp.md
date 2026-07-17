@@ -49,7 +49,7 @@ export PGBACKREST_S3_KEY_SECRET='your-independent-object-store-secret'
 sh infra/gcp/provision-secrets.sh .env.production
 ```
 
-The off-site object-storage credentials remain externally supplied because backup storage must be independent from the VM. Rotation is performed by adding coordinated Secret Manager versions and deploying again. Do not put production values in `.env.production.example`, Terraform variables, Git, or GitHub secrets.
+The off-site object-storage credentials remain externally supplied because backup storage must be independent from the VM. Re-running the helper validates the environment file and refreshes only the `agentern-env` version when its contents change; existing credential versions are left untouched. Rotation is performed separately by adding coordinated credential versions and deploying again. Do not put production values in `.env.production.example`, Terraform variables, Git, or GitHub secrets.
 
 ## Configure the GitHub production environment
 
@@ -61,7 +61,7 @@ Create a GitHub environment named `production`, restrict it to `main`, and add t
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `workload_identity_provider` output   |
 | `GCP_DEPLOY_SERVICE_ACCOUNT`     | `deploy_service_account` output       |
 | `GCP_INSTANCE_NAME`              | `instance_name` output                |
-| `GCP_ZONE`                       | `zone` output                         |
+| `GCP_ZONE`                       | Optional explicit zone; when omitted, CI resolves the zone of `GCP_INSTANCE_NAME` |
 | `GCP_SECRET_PREFIX`              | `agentern` unless changed             |
 | `GCP_DEPLOY_PATH`                | Optional; defaults to `/opt/agentern` |
 
@@ -74,8 +74,8 @@ A push to `main` runs lint, type checking, migrations, unit/integration/MCP/E2E 
 1. Publish commit-addressed `SHA-web`, `SHA-migrate`, and `SHA-postgres` multi-architecture images.
 2. Authenticate to GCP with Workload Identity Federation.
 3. Synchronize `.env` and Docker secret files directly from Secret Manager over IAP SSH.
-4. Pull immutable images and back up an existing database.
-5. Apply migrations before replacing web and Caddy.
+4. Start Caddy and its public HTTP/HTTPS listeners before database preparation, then pull immutable images and back up an existing database.
+5. Apply migrations before replacing web; Caddy remains available while preparation failures are diagnosed.
 6. Require local and public HTTPS readiness.
 7. Restore the previous web image if readiness fails.
 8. Install and enable daily backup, daily retention, and monthly isolated restore-verification timers.

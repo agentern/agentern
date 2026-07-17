@@ -42,6 +42,13 @@ jobs:
       CI: "true"
     steps:
       - uses: actions/checkout@v7
+      - name: Validate workflow YAML and shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' workflow_files < <(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0)
+          ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path, aliases: true); puts "valid YAML: #{path}" }' "${workflow_files[@]}"
+          find . -path './.git' -prune -o -path './node_modules' -prune -o -name '*.sh' -print0 | xargs -0 -r -n1 sh -n
       - uses: pnpm/action-setup@v6
         with: { version: 10.33.4 }
       - uses: actions/setup-node@v7
@@ -192,7 +199,9 @@ jobs:
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/643964513177/locations/global/workloadIdentityPools/agentern-github/providers/agentern-repository' }}
       GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || 'agentern-github-deploy@agenterninc.iam.gserviceaccount.com' }}
       GCP_INSTANCE_NAME: ${{ vars.GCP_INSTANCE_NAME || 'agentern-production' }}
-      GCP_ZONE: ${{ vars.GCP_ZONE || 'us-central1-b' }}
+      # Leave this empty by default. The validation step resolves the zone
+      # from the named VM, while an explicit environment variable still wins.
+      GCP_ZONE: ${{ vars.GCP_ZONE || '' }}
       GCP_SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX || 'agentern' }}
       DEPLOY_PATH: ${{ vars.GCP_DEPLOY_PATH || '/opt/agentern' }}
       IMAGE_REPOSITORY: ${{ needs.publish.outputs.image_repository }}
@@ -219,12 +228,26 @@ jobs:
           : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
           : "${GCP_DEPLOY_SERVICE_ACCOUNT:?GCP_DEPLOY_SERVICE_ACCOUNT is required}"
           : "${GCP_INSTANCE_NAME:?GCP_INSTANCE_NAME is required}"
-          : "${GCP_ZONE:?GCP_ZONE is required}"
           DEPLOY_PATH="${DEPLOY_PATH:-/opt/agentern}"
           GCP_SECRET_PREFIX="${GCP_SECRET_PREFIX:-agentern}"
           [[ "$DEPLOY_PATH" =~ ^/[a-zA-Z0-9._/-]+$ ]] || { echo "Invalid deployment path" >&2; exit 2; }
           [[ "$GCP_SECRET_PREFIX" =~ ^[a-z][a-z0-9-]{0,40}$ ]] || { echo "Invalid GCP secret prefix" >&2; exit 2; }
+          if [[ -z "$GCP_ZONE" ]]; then
+            zones="$(gcloud compute instances list \
+              --project "$GCP_PROJECT_ID" \
+              --filter="name=('$GCP_INSTANCE_NAME')" \
+              --format='value(zone)' | sed '/^$/d' | sort -u)"
+            zone_count="$(printf '%s\n' "$zones" | sed '/^$/d' | wc -l | tr -d ' ')"
+            if [[ "$zone_count" != 1 ]]; then
+              echo "Unable to resolve exactly one zone for $GCP_INSTANCE_NAME (found $zone_count):" >&2
+              printf '%s\n' "$zones" >&2
+              exit 2
+            fi
+            GCP_ZONE="$(printf '%s\n' "$zones" | sed -n '1p')"
+          fi
+          : "${GCP_ZONE:?GCP_ZONE could not be resolved}"
           printf 'DEPLOY_PATH=%s\nGCP_SECRET_PREFIX=%s\n' "$DEPLOY_PATH" "$GCP_SECRET_PREFIX" >> "$GITHUB_ENV"
+          printf 'GCP_ZONE=%s\n' "$GCP_ZONE" >> "$GITHUB_ENV"
           gcloud compute instances describe "$GCP_INSTANCE_NAME" --project "$GCP_PROJECT_ID" --zone "$GCP_ZONE" --format='value(status)' | grep -qx RUNNING
       - name: Synchronize production secrets from Secret Manager
         shell: bash
@@ -252,6 +275,7 @@ jobs:
             ops/Caddyfile \
             ops/backup.sh \
             ops/deploy.sh \
+            ops/validate-production-config.sh \
             ops/retention.sh \
             ops/restore-verify.sh \
             ops/runtime-env.sh \
@@ -271,6 +295,15 @@ jobs:
           trap 'remote "sudo docker logout ghcr.io" >/dev/null 2>&1 || true' EXIT
           remote "sudo RELEASE_SHA='$GITHUB_SHA' IMAGE_REPOSITORY='$IMAGE_REPOSITORY' DEPLOYMENT_ROOT='$DEPLOY_PATH' DEPLOY_PUBLIC_HEALTH_URL='https://agentern.com/readyz' sh '$DEPLOY_PATH/ops/deploy.sh'"
       - name: Verify public deployment
+        shell: bash
         run: |
+          set -euo pipefail
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://agentern.com/readyz
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 https://agentern.com/ >/dev/null
+          mcp_response="$(curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 \
+            -H 'content-type: application/json' \
+            -H 'accept: application/json, text/event-stream' \
+            -H 'mcp-protocol-version: 2025-11-25' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"agentern-ci","version":"1"}}}' \
+            https://agentern.com/mcp)"
+          printf '%s' "$mcp_response" | grep -q '"protocolVersion":"2025-11-25"'

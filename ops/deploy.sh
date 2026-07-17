@@ -46,11 +46,22 @@ for secret in postgres_password database_url token_pepper metrics_token admin_cl
   fi
 done
 
+sh ops/validate-production-config.sh .env ops/secrets
 docker compose config --quiet
 mkdir -p var
 chmod 0755 var
 
-docker compose pull db migrate maintenance web
+docker compose pull db migrate maintenance web caddy
+
+# Keep the public listener and TLS termination available even if a first boot
+# later fails while preparing PostgreSQL, backups, or migrations. Caddy has no
+# dependency on the application container and will proxy once web is healthy.
+if ! docker compose up -d --no-build caddy; then
+  echo "Caddy failed to start; deployment diagnostics:" >&2
+  docker compose ps caddy >&2 || true
+  docker compose logs --no-color --tail=200 caddy >&2 || true
+  exit 1
+fi
 
 previous_release=""
 if [ -s "$release_file" ]; then

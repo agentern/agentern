@@ -142,9 +142,6 @@ services:
     image: caddy:2.10.2-alpine
     profiles: ["production"]
     restart: unless-stopped
-    depends_on:
-      web:
-        condition: service_healthy
     environment:
       AGENTERN_DOMAIN: ${AGENTERN_DOMAIN:-agentern.com}
       ACME_EMAIL: ${ACME_EMAIL:-ops@agentern.com}
