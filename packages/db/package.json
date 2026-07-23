@@ -22,7 +22,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "drizzle-kit": "^0.31.9",
-    "eslint": "^9.39.4",
+    "eslint": "^10.7.0",
     "tsx": "^4.20.6",
     "typescript": "^5"
   },
