@@ -21,7 +21,7 @@
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",
     "knip": "^6.27.0",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "turbo": "^2.9.18",
     "typescript": "^5"
