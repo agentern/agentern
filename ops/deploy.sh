@@ -163,6 +163,12 @@ while :; do
   sleep 1
 done
 
+if ! docker compose run --rm --no-deps seed; then
+  echo "Showcase seed failed after migrations:" >&2
+  docker compose logs --no-color --tail=200 seed >&2 || true
+  exit 1
+fi
+
 if ! docker compose up -d --no-build --force-recreate web caddy; then
   echo "Web/Caddy failed to start; deployment diagnostics:" >&2
   docker compose ps web caddy >&2 || true
