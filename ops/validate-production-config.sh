@@ -33,9 +33,8 @@ ACME_EMAIL=$(config_value ACME_EMAIL)
 LEGAL_ENTITY_NAME=$(config_value LEGAL_ENTITY_NAME)
 SUPPORT_EMAIL=$(config_value SUPPORT_EMAIL)
 SECURITY_EMAIL=$(config_value SECURITY_EMAIL)
+PGBACKREST_REPO1_GCS_BUCKET=$(config_value PGBACKREST_REPO1_GCS_BUCKET)
 PGBACKREST_REPO1_S3_BUCKET=$(config_value PGBACKREST_REPO1_S3_BUCKET)
-PGBACKREST_REPO1_S3_ENDPOINT=$(config_value PGBACKREST_REPO1_S3_ENDPOINT)
-PGBACKREST_REPO1_S3_REGION=$(config_value PGBACKREST_REPO1_S3_REGION)
 POSTGRES_DB=$(config_value POSTGRES_DB)
 POSTGRES_USER=$(config_value POSTGRES_USER)
 ENFORCE_PRODUCTION_CONFIG=$(config_value ENFORCE_PRODUCTION_CONFIG)
@@ -63,9 +62,9 @@ require_value ACME_EMAIL "${ACME_EMAIL:-}"
 require_value LEGAL_ENTITY_NAME "${LEGAL_ENTITY_NAME:-}"
 require_value SUPPORT_EMAIL "${SUPPORT_EMAIL:-}"
 require_value SECURITY_EMAIL "${SECURITY_EMAIL:-}"
-require_value PGBACKREST_REPO1_S3_BUCKET "${PGBACKREST_REPO1_S3_BUCKET:-}"
-require_value PGBACKREST_REPO1_S3_ENDPOINT "${PGBACKREST_REPO1_S3_ENDPOINT:-}"
-require_value PGBACKREST_REPO1_S3_REGION "${PGBACKREST_REPO1_S3_REGION:-}"
+if [ -z "${PGBACKREST_REPO1_GCS_BUCKET:-}" ] && [ -z "${PGBACKREST_REPO1_S3_BUCKET:-}" ]; then
+  fail "PGBACKREST_REPO1_GCS_BUCKET is required"
+fi
 require_value POSTGRES_DB "${POSTGRES_DB:-}"
 require_value POSTGRES_USER "${POSTGRES_USER:-}"
 
@@ -76,9 +75,6 @@ require_value POSTGRES_USER "${POSTGRES_USER:-}"
 
 case "$AGENTERN_DOMAIN" in
   *[!A-Za-z0-9.-]* | *.*.* | "") fail "AGENTERN_DOMAIN is invalid" ;;
-esac
-case "$PGBACKREST_REPO1_S3_ENDPOINT" in
-  *://* | */* | "") fail "PGBACKREST_REPO1_S3_ENDPOINT must be a hostname" ;;
 esac
 case "$ACME_EMAIL" in
   *@*.*) ;;
@@ -98,9 +94,7 @@ for pair in \
   "LEGAL_ENTITY_NAME=$LEGAL_ENTITY_NAME" \
   "SUPPORT_EMAIL=$SUPPORT_EMAIL" \
   "SECURITY_EMAIL=$SECURITY_EMAIL" \
-  "PGBACKREST_REPO1_S3_BUCKET=$PGBACKREST_REPO1_S3_BUCKET" \
-  "PGBACKREST_REPO1_S3_ENDPOINT=$PGBACKREST_REPO1_S3_ENDPOINT" \
-  "PGBACKREST_REPO1_S3_REGION=$PGBACKREST_REPO1_S3_REGION"; do
+  "PGBACKREST_REPO1_GCS_BUCKET=${PGBACKREST_REPO1_GCS_BUCKET:-$PGBACKREST_REPO1_S3_BUCKET}"; do
   name=${pair%%=*}
   value=${pair#*=}
   reject_placeholder "$name" "$value"
@@ -108,7 +102,7 @@ done
 
 if [ "$mode" != --env-only ]; then
   [ -d "$secret_dir" ] || fail "$secret_dir is missing"
-  for secret in postgres_password database_url token_pepper metrics_token admin_cli_secret proxy_shared_secret pgbackrest_s3_key pgbackrest_s3_key_secret pgbackrest_cipher_pass; do
+  for secret in postgres_password database_url token_pepper metrics_token admin_cli_secret proxy_shared_secret pgbackrest_cipher_pass; do
     file="$secret_dir/$secret"
     [ -s "$file" ] || fail "$file is missing or empty"
     value=$(tr -d '\r\n' < "$file")

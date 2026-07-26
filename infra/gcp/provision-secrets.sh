@@ -2,8 +2,6 @@
 set -eu
 
 : "${GCP_PROJECT_ID:?GCP_PROJECT_ID is required}"
-: "${PGBACKREST_S3_KEY:?PGBACKREST_S3_KEY is required}"
-: "${PGBACKREST_S3_KEY_SECRET:?PGBACKREST_S3_KEY_SECRET is required}"
 
 prefix=${GCP_SECRET_PREFIX:-agentern}
 env_file=${1:-.env.production}
@@ -78,6 +76,4 @@ add_value "$prefix-token-pepper" "$(openssl rand -hex 32)"
 add_value "$prefix-metrics-token" "$(openssl rand -hex 32)"
 add_value "$prefix-admin-cli-secret" "$(openssl rand -hex 32)"
 add_value "$prefix-proxy-shared-secret" "$(openssl rand -hex 32)"
-add_value "$prefix-pgbackrest-s3-key" "$PGBACKREST_S3_KEY"
-add_value "$prefix-pgbackrest-s3-key-secret" "$PGBACKREST_S3_KEY_SECRET"
 add_value "$prefix-pgbackrest-cipher-pass" "$(openssl rand -hex 32)"

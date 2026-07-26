@@ -39,11 +39,7 @@ docker volume create "$volume" >/dev/null
 docker run --rm \
   --user root \
   --env-file .env \
-  --env PGBACKREST_REPO1_S3_KEY_FILE=/run/secrets/pgbackrest_s3_key \
-  --env PGBACKREST_REPO1_S3_KEY_SECRET_FILE=/run/secrets/pgbackrest_s3_key_secret \
   --env PGBACKREST_REPO1_CIPHER_PASS_FILE=/run/secrets/pgbackrest_cipher_pass \
-  --volume "$deployment_root/ops/secrets/pgbackrest_s3_key:/run/secrets/pgbackrest_s3_key:ro" \
-  --volume "$deployment_root/ops/secrets/pgbackrest_s3_key_secret:/run/secrets/pgbackrest_s3_key_secret:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_cipher_pass:/run/secrets/pgbackrest_cipher_pass:ro" \
   --volume "$volume:/var/lib/postgresql" \
   "$POSTGRES_IMAGE" \
@@ -52,11 +48,7 @@ docker run --rm \
 docker run --detach \
   --name "$container" \
   --env-file .env \
-  --env PGBACKREST_REPO1_S3_KEY_FILE=/run/secrets/pgbackrest_s3_key \
-  --env PGBACKREST_REPO1_S3_KEY_SECRET_FILE=/run/secrets/pgbackrest_s3_key_secret \
   --env PGBACKREST_REPO1_CIPHER_PASS_FILE=/run/secrets/pgbackrest_cipher_pass \
-  --volume "$deployment_root/ops/secrets/pgbackrest_s3_key:/run/secrets/pgbackrest_s3_key:ro" \
-  --volume "$deployment_root/ops/secrets/pgbackrest_s3_key_secret:/run/secrets/pgbackrest_s3_key_secret:ro" \
   --volume "$deployment_root/ops/secrets/pgbackrest_cipher_pass:/run/secrets/pgbackrest_cipher_pass:ro" \
   --volume "$volume:/var/lib/postgresql" \
   "$POSTGRES_IMAGE" \

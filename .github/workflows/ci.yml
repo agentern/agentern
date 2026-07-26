@@ -322,7 +322,7 @@ jobs:
           }
           ssh_command "sudo install -d -m 0750 '$DEPLOY_PATH' && sudo install -d -m 0700 '$DEPLOY_PATH/ops/secrets'"
           sync_secret "$GCP_SECRET_PREFIX-env" "$DEPLOY_PATH/.env"
-          for name in postgres-password database-url token-pepper metrics-token admin-cli-secret proxy-shared-secret pgbackrest-s3-key pgbackrest-s3-key-secret pgbackrest-cipher-pass; do
+          for name in postgres-password database-url token-pepper metrics-token admin-cli-secret proxy-shared-secret pgbackrest-cipher-pass; do
             file_name=${name//-/_}
             sync_secret "$GCP_SECRET_PREFIX-$name" "$DEPLOY_PATH/ops/secrets/$file_name"
           done

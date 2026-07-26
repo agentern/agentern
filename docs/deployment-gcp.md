@@ -40,16 +40,14 @@ The defaults create an Arm64 N4A VM. N4A requires Hyperdisk and does not support
 
 ## Provision Secret Manager once
 
-Copy `.env.production.example` to an ignored `.env.production`, fill in the legal/contact and pgBackRest endpoint values, then run the idempotent provisioning helper. It generates independent credentials without writing them to disk and will not rotate an existing enabled version:
+Copy `.env.production.example` to an ignored `.env.production`, fill in the legal/contact and pgBackRest bucket values, then run the idempotent provisioning helper. pgBackRest uses the VM's dedicated runtime service account to access GCS and the helper will not rotate an existing enabled version:
 
 ```sh
 export GCP_PROJECT_ID=your-gcp-project
-export PGBACKREST_S3_KEY='your-independent-object-store-key'
-export PGBACKREST_S3_KEY_SECRET='your-independent-object-store-secret'
 sh infra/gcp/provision-secrets.sh .env.production
 ```
 
-The off-site object-storage credentials remain externally supplied because backup storage must be independent from the VM. Re-running the helper validates the environment file and refreshes only the `agentern-env` version when its contents change; existing credential versions are left untouched. Rotation is performed separately by adding coordinated credential versions and deploying again. Do not put production values in `.env.production.example`, Terraform variables, Git, or GitHub secrets.
+The runtime service account has access only to the configured backup bucket. Re-running the helper validates the environment file and refreshes only the `agentern-env` version when its contents change; existing credential versions are left untouched. Rotation is performed separately by adding coordinated credential versions and deploying again. Do not put production values in `.env.production.example`, Terraform variables, Git, or GitHub secrets.
 
 ## Configure the GitHub production environment
 
