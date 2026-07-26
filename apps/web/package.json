@@ -39,7 +39,7 @@
     "@types/react-dom": "^19",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^10",
+    "eslint": "^9.39.5",
     "typescript": "^5",
     "@vitest/coverage-v8": "^4.1.10",
     "vitest": "^4.1.10"

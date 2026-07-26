@@ -13,7 +13,7 @@
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^10.7.0",
+    "eslint": "^9.39.5",
     "typescript": "^5"
   },
   "exports": {
