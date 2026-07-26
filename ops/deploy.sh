@@ -108,6 +108,7 @@ run_pgbackrest() {
 
 run_pgbackrest_control() {
   docker compose exec -T db sh -ceu '
+    unset PGBACKREST_REPO1_CIPHER_PASS_FILE
     if [ -z "${PGBACKREST_REPO1_GCS_BUCKET:-}" ] && [ -n "${PGBACKREST_REPO1_S3_BUCKET:-}" ]; then
       export PGBACKREST_REPO1_GCS_BUCKET="$PGBACKREST_REPO1_S3_BUCKET"
     fi

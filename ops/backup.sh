@@ -39,8 +39,21 @@ run_pgbackrest() {
   ' -- "$@"
 }
 
+run_pgbackrest_info() {
+  docker compose exec -T db sh -ceu '
+    unset PGBACKREST_REPO1_CIPHER_PASS_FILE
+    if [ -z "${PGBACKREST_REPO1_GCS_BUCKET:-}" ] && [ -n "${PGBACKREST_REPO1_S3_BUCKET:-}" ]; then
+      export PGBACKREST_REPO1_GCS_BUCKET="$PGBACKREST_REPO1_S3_BUCKET"
+    fi
+    unset PGBACKREST_REPO1_S3_BUCKET
+    export PGBACKREST_REPO1_CIPHER_PASS="$(cat /run/secrets/pgbackrest_cipher_pass)"
+    exec su-exec postgres pgbackrest "$@"
+  ' -- "$@"
+}
+
 run_pgbackrest_control() {
   docker compose exec -T db sh -ceu '
+    unset PGBACKREST_REPO1_CIPHER_PASS_FILE
     if [ -z "${PGBACKREST_REPO1_GCS_BUCKET:-}" ] && [ -n "${PGBACKREST_REPO1_S3_BUCKET:-}" ]; then
       export PGBACKREST_REPO1_GCS_BUCKET="$PGBACKREST_REPO1_S3_BUCKET"
     fi
@@ -58,5 +71,5 @@ else
   backup_type=diff
 fi
 run_pgbackrest --stanza=agentern --type="$backup_type" backup
-run_pgbackrest --stanza=agentern info --output=json
+run_pgbackrest_info --stanza=agentern info --output=json
 backup_status=1
