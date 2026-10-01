@@ -14,21 +14,21 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.1",
     "@workspace/contracts": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
-    "drizzle-orm": "0.45.2",
-    "ipaddr.js": "^2.4.0",
-    "lucide-react": "^1.27.0",
-    "mcp-handler": "1.1.0",
-    "next": "16.2.12",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "redis": "6.1.0",
+    "drizzle-orm": "0.45.3",
+    "ipaddr.js": "^2.5.0",
+    "lucide-react": "^1.48.0",
+    "mcp-handler": "2.2.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "redis": "6.2.1",
     "server-only": "^0.0.1",
-    "undici": "^8.9.0",
-    "zod": "4.4.3"
+    "undici": "^8.11.2",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
